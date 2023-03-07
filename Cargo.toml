@@ -6,6 +6,7 @@ members = [
     "cannoli",
     "jitter",
     "jitter_always",
+    "qemu-rs",
     "examples/visualization",
     "examples/symbolizer",
     "examples/benchmark",

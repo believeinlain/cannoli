@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 mempipe = { path = "../mempipe" }
+qemu ={ path = "../qemu-rs", features = ["qemu-x86_64"]}
 

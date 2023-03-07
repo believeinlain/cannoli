@@ -1,6 +1,6 @@
 use std::{env::var, fs::create_dir, path::PathBuf, process::Command};
 
-use git2::{build::CheckoutBuilder, Repository};
+use git2::{build::CheckoutBuilder, Index, Oid, Repository, Diff};
 
 const QEMU_GIT_URL: &str = "https://github.com/qemu/qemu.git";
 
@@ -698,8 +698,16 @@ fn main() {
         Ok(repo) => repo,
     };
 
+    // Checkout the commit used for Cannoli
+    let oid_str = "00b1faea41d283e931256aa78aa975a369ec3ae6";
+    let oid = Oid::from_str(oid_str).unwrap();
+    repo.set_head_detached(oid).unwrap();
     repo.checkout_head(Some(CheckoutBuilder::default().force()))
         .expect("Failed to checkout repository");
+    
+    // Apply Cannoli patch
+    let patch = Diff::from_buffer(include_bytes!("cannoli.patch")).unwrap();
+    repo.apply(&patch, git2::ApplyLocation::WorkDir, None).unwrap();
 
     let configure_args = build_qemu_configure_args(&qemu_install_path);
 
