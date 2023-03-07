@@ -3,7 +3,7 @@
 use cannoli::{create_cannoli, Cannoli};
 use memfd_exec::MemFdExecutable;
 use qemu::qemu_mipsel;
-use std::{sync::Arc, thread};
+use std::{process::exit, sync::Arc, thread};
 
 /// An original pointer address, and then a resolved symbol + offset for that
 /// address
@@ -212,11 +212,16 @@ fn main() {
     let qemu = qemu_mipsel();
     let mut qemu_mipsel = MemFdExecutable::new("qemu-mipsel", qemu)
         .args([
-            "-cannoli", "../../target/release/libjitter_always.so",
+            "-cannoli",
+            "../../target/release/libjitter_always.so",
             "example_app",
         ])
         .spawn()
         .unwrap();
     qemu_mipsel.wait().unwrap();
-    symbolizer.join().unwrap();
+    if symbolizer.is_finished() {
+        symbolizer.join().unwrap();
+    } else {
+        exit(0)
+    }
 }
