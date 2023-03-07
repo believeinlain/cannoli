@@ -1,6 +1,6 @@
-use std::{env::var, fs::create_dir, path::PathBuf, process::Command};
+use std::{env::{var, self}, fs::create_dir, path::PathBuf, process::Command};
 
-use git2::{build::CheckoutBuilder, Index, Oid, Repository, Diff};
+use git2::{build::CheckoutBuilder, Oid, Repository, Diff};
 
 const QEMU_GIT_URL: &str = "https://github.com/qemu/qemu.git";
 
@@ -704,12 +704,21 @@ fn main() {
     repo.set_head_detached(oid).unwrap();
     repo.checkout_head(Some(CheckoutBuilder::default().force()))
         .expect("Failed to checkout repository");
-    
+
     // Apply Cannoli patch
     let patch = Diff::from_buffer(include_bytes!("cannoli.patch")).unwrap();
     repo.apply(&patch, git2::ApplyLocation::WorkDir, None).unwrap();
 
-    let configure_args = build_qemu_configure_args(&qemu_install_path);
+    let mut configure_args = build_qemu_configure_args(&qemu_install_path);
+
+    // Configure with-cannoli
+    let mut cannoli_path = PathBuf::from(
+        var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set. Is build.rs being run correctly by cargo build?"),
+    );
+    cannoli_path.pop();
+    // cannoli_path.push("cannoli");
+    // panic!("CARGO_MANIFEST_DIR={:?}", cannoli_path);
+    configure_args.push(format!("--with-cannoli={}", cannoli_path.to_str().unwrap()));
 
     let configure_prog = qemu_repo_path
         .join("configure")

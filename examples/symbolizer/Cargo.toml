@@ -3,8 +3,8 @@ name = "example_symbolizer"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+jitter_always = { path = "../../jitter_always" }
 cannoli = { path = "../../cannoli" }
-
+memfd-exec = "0.1"
+qemu = { path = "../../qemu-rs", features = ["qemu-mipsel", "qemu-riscv64"] }

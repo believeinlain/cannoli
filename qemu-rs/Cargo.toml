@@ -13,6 +13,7 @@ categories = ["emulators"]
 [dependencies]
 
 [build-dependencies]
+cannoli = { path = "../cannoli" }
 git2 = "0.15.0"
 num_cpus = "1.13.0"
 
