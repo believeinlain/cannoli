@@ -1,6 +1,11 @@
-use std::{env::{var, self}, fs::create_dir, path::PathBuf, process::Command};
+use std::{
+    env::var,
+    fs::create_dir,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-use git2::{build::CheckoutBuilder, Oid, Repository, Diff};
+use git2::{build::CheckoutBuilder, Diff, Oid, Repository};
 
 const QEMU_GIT_URL: &str = "https://github.com/qemu/qemu.git";
 
@@ -209,7 +214,7 @@ fn get_target_list() -> Vec<String> {
     target_architectures
 }
 
-fn build_qemu_configure_args(build_path: &PathBuf) -> Vec<String> {
+fn build_qemu_configure_args(build_path: &Path) -> Vec<String> {
     let mut configure_args = Vec::new();
 
     // Conditional target options
@@ -707,13 +712,15 @@ fn main() {
 
     // Apply Cannoli patch
     let patch = Diff::from_buffer(include_bytes!("cannoli.patch")).unwrap();
-    repo.apply(&patch, git2::ApplyLocation::WorkDir, None).unwrap();
+    repo.apply(&patch, git2::ApplyLocation::WorkDir, None)
+        .unwrap();
 
     let mut configure_args = build_qemu_configure_args(&qemu_install_path);
 
     // Configure with-cannoli
     let mut cannoli_path = PathBuf::from(
-        var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set. Is build.rs being run correctly by cargo build?"),
+        var("CARGO_MANIFEST_DIR")
+            .expect("CARGO_MANIFEST_DIR not set. Is build.rs being run correctly by cargo build?"),
     );
     cannoli_path.pop();
     configure_args.push(format!("--with-cannoli={}", cannoli_path.to_str().unwrap()));
@@ -747,8 +754,7 @@ fn main() {
         .current_dir(&qemu_build_path)
         .args(&configure_args)
         .arg(
-            &repo
-                .path()
+            repo.path()
                 .parent()
                 .expect("Could not find parent of repo path"),
         )
@@ -775,7 +781,7 @@ fn main() {
             true => "qemu-system-".to_string() + &enabled_target.replace("-softmmu", ""),
             false => "qemu-".to_string() + &enabled_target.replace("-linux-user", ""),
         };
-        let target_bin = qemu_install_path.join("bin").join(&target_name);
+        let target_bin = qemu_install_path.join("bin").join(target_name);
         if !target_bin.exists() {
             panic!("Failed to build target {:?}", target_bin);
         }
