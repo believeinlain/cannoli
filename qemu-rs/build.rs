@@ -716,8 +716,6 @@ fn main() {
         var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set. Is build.rs being run correctly by cargo build?"),
     );
     cannoli_path.pop();
-    // cannoli_path.push("cannoli");
-    // panic!("CARGO_MANIFEST_DIR={:?}", cannoli_path);
     configure_args.push(format!("--with-cannoli={}", cannoli_path.to_str().unwrap()));
 
     let configure_prog = qemu_repo_path
