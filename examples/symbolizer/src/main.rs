@@ -1,7 +1,9 @@
 //! An example user of Cannoli which symbolizes a trace
 
-use std::sync::Arc;
-use cannoli::{Cannoli, create_cannoli};
+use cannoli::{create_cannoli, Cannoli};
+use memfd_exec::MemFdExecutable;
+use qemu::qemu_mipsel;
+use std::{process::exit, sync::Arc, thread};
 
 /// An original pointer address, and then a resolved symbol + offset for that
 /// address
@@ -19,8 +21,11 @@ struct SymOff {
 impl std::fmt::Display for SymOff {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.offset != 0 {
-            write!(f, "{:#018x} ({}+{:#x})",
-                self.addr, self.symbol, self.offset)
+            write!(
+                f,
+                "{:#018x} ({}+{:#x})",
+                self.addr, self.symbol, self.offset
+            )
         } else {
             write!(f, "{:#018x} ({})", self.addr, self.symbol)
         }
@@ -28,9 +33,21 @@ impl std::fmt::Display for SymOff {
 }
 
 enum Operation {
-    Exec  { pc: SymOff },
-    Read  { pc: SymOff, addr: SymOff, val: u64, sz: u8 },
-    Write { pc: SymOff, addr: SymOff, val: u64, sz: u8 },
+    Exec {
+        pc: SymOff,
+    },
+    Read {
+        pc: SymOff,
+        addr: SymOff,
+        val: u64,
+        sz: u8,
+    },
+    Write {
+        pc: SymOff,
+        addr: SymOff,
+        val: u64,
+        sz: u8,
+    },
 }
 
 /// The structure we implement [`Cannoli`] for!
@@ -55,18 +72,17 @@ impl Context {
                 SymOff {
                     addr,
                     symbol: symbols[pos].1,
-                    offset: 0
+                    offset: 0,
                 }
             }
             Err(pos) => {
                 // Found location after symbol, find the nearest symbol below
-                if let Some((sa, sym)) = pos.checked_sub(1)
-                        .and_then(|x| symbols.get(x)) {
+                if let Some((sa, sym)) = pos.checked_sub(1).and_then(|x| symbols.get(x)) {
                     // Got symbol below
                     SymOff {
                         addr,
                         symbol: sym,
-                        offset: addr - sa
+                        offset: addr - sa,
                     }
                 } else {
                     // No symbols below this address, just emit the PC
@@ -90,14 +106,13 @@ impl Cannoli for Symbolizer {
     type TidContext = Context;
 
     type PidContext = ();
-    
+
     fn init_pid(_: &cannoli::ClientInfo) -> Arc<Self::PidContext> {
         Arc::new(())
     }
 
     /// Load the symbol table
-    fn init_tid(_pid: &Self::PidContext,
-            _: &cannoli::ClientInfo) -> (Self, Self::TidContext) {
+    fn init_tid(_pid: &Self::PidContext, _: &cannoli::ClientInfo) -> (Self, Self::TidContext) {
         // Symbols
         let mut symbols = Vec::new();
 
@@ -110,7 +125,7 @@ impl Cannoli for Symbolizer {
             let chunk = line.splitn(3, ' ').collect::<Vec<_>>();
 
             let addr = u64::from_str_radix(chunk[0], 16).unwrap();
-            let sym  = chunk[2];
+            let sym = chunk[2];
             symbols.push((addr, sym));
         }
 
@@ -121,48 +136,71 @@ impl Cannoli for Symbolizer {
     }
 
     /// Convert PCs into symbol + offset in parallel
-    fn exec(_pid: &Self::PidContext, tid: &Self::TidContext,
-            pc: u64, trace: &mut Vec<Self::Trace>) {
-        trace.push(Operation::Exec { pc: tid.resolve(pc) });
+    fn exec(
+        _pid: &Self::PidContext,
+        tid: &Self::TidContext,
+        pc: u64,
+        trace: &mut Vec<Self::Trace>,
+    ) {
+        trace.push(Operation::Exec {
+            pc: tid.resolve(pc),
+        });
     }
 
     /// Symbolize reads
-    fn read(_pid: &Self::PidContext, tid: &Self::TidContext,
-            pc: u64, addr: u64, val: u64, sz: u8,
-            trace: &mut Vec<Self::Trace>) {
+    fn read(
+        _pid: &Self::PidContext,
+        tid: &Self::TidContext,
+        pc: u64,
+        addr: u64,
+        val: u64,
+        sz: u8,
+        trace: &mut Vec<Self::Trace>,
+    ) {
         trace.push(Operation::Read {
-            pc:   tid.resolve(pc),
+            pc: tid.resolve(pc),
             addr: tid.resolve(addr),
-            val, sz,
+            val,
+            sz,
         });
     }
 
     /// Symbolize writes
-    fn write(_pid: &Self::PidContext, tid: &Self::TidContext,
-             pc: u64, addr: u64, val: u64, sz: u8,
-             trace: &mut Vec<Self::Trace>) {
+    fn write(
+        _pid: &Self::PidContext,
+        tid: &Self::TidContext,
+        pc: u64,
+        addr: u64,
+        val: u64,
+        sz: u8,
+        trace: &mut Vec<Self::Trace>,
+    ) {
         trace.push(Operation::Write {
-            pc:   tid.resolve(pc),
+            pc: tid.resolve(pc),
             addr: tid.resolve(addr),
-            val, sz,
+            val,
+            sz,
         });
     }
 
     /// Print the trace we processed!
-    fn trace(&mut self, _pid: &Self::PidContext, _tid: &Self::TidContext,
-             trace: &[Self::Trace]) {
+    fn trace(&mut self, _pid: &Self::PidContext, _tid: &Self::TidContext, trace: &[Self::Trace]) {
         for op in trace {
             match op {
                 Operation::Exec { pc } => {
                     println!("\x1b[0;34mEXEC\x1b[0m   @ {pc}");
                 }
                 Operation::Read { pc, addr, val, sz } => {
-                    println!("\x1b[0;32mREAD{sz}\x1b[0m  @ {pc} | \
-                        {addr} ={val:#x}");
+                    println!(
+                        "\x1b[0;32mREAD{sz}\x1b[0m  @ {pc} | \
+                        {addr} ={val:#x}"
+                    );
                 }
                 Operation::Write { pc, addr, val, sz } => {
-                    println!("\x1b[0;31mWRITE{sz}\x1b[0m @ {pc} | \
-                        {addr} ={val:#x}");
+                    println!(
+                        "\x1b[0;31mWRITE{sz}\x1b[0m @ {pc} | \
+                        {addr} ={val:#x}"
+                    );
                 }
             }
         }
@@ -170,6 +208,20 @@ impl Cannoli for Symbolizer {
 }
 
 fn main() {
-    create_cannoli::<Symbolizer>(2).unwrap();
+    let symbolizer = thread::spawn(|| create_cannoli::<Symbolizer>(2).unwrap());
+    let qemu = qemu_mipsel();
+    let mut qemu_mipsel = MemFdExecutable::new("qemu-mipsel", qemu)
+        .args([
+            "-cannoli",
+            "../../target/release/libjitter_always.so",
+            "example_app",
+        ])
+        .spawn()
+        .unwrap();
+    qemu_mipsel.wait().unwrap();
+    if symbolizer.is_finished() {
+        symbolizer.join().unwrap();
+    } else {
+        exit(0)
+    }
 }
-
