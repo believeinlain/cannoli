@@ -1,5 +1,14 @@
 ![Cannoli Mascot!](/.assets/logo.png)
 
+Fork of cannoli integrating [qemu-rs](https://github.com/novafacing/qemu-rs), 
+streamlining the patching and build process.
+
+Specifically, the `qemu` crate has been added to this workspace and modified to
+checkout the latest working version of QEMU (`00b1faea41d283e931256aa78aa975a369ec3ae6`),
+apply the cannoli patch, configure qemu with `--with-cannoli`, and build it.
+As such, the instructions to build and use cannoli have been reduced to a single
+step.
+
 ## Cannoli
 
 Cannoli is a high-performance tracing engine for qemu-user. It can record a
@@ -44,46 +53,13 @@ cd cannoli
 cargo build --release
 ```
 
-Checkout QEMU
-
-```
-git clone https://gitlab.com/qemu-project/qemu.git
-```
-
-Switch to the current QEMU branch we're working on
-
-```
-git checkout 00b1faea41d283e931256aa78aa975a369ec3ae6
-```
-
-Apply patch from `qemu_patches.patch`
-
-```
-cd qemu
-git am --3way </path/to/cannoli>/qemu_patches.patch
-```
-
-Build QEMU for your desired targets (example mipsel and riscv64)
-
-```
-./configure --target-list=mipsel-linux-user,riscv64-linux-user --extra-ldflags="-ldl" --with-cannoli=</path/to/cannoli>
-make -j48
-```
-
 Try out the example symbolizer
 
-In one terminal, start the symbolizer
+In one terminal, run qemu and start the symbolizer
 
 ```
 cd examples/symbolizer
 cargo run --release
-```
-
-In another terminal, run the program in QEMU with Cannoli!
-
-```
-cd examples/symbolizer
-</path/to/qemu>/build/qemu-mipsel -cannoli </path/to/cannoli>/target/release/<your jitter so>.so ./example_app
 ```
 
 ## Coverage Example

@@ -7,4 +7,4 @@ edition = "2021"
 jitter_always = { path = "../../jitter_always" }
 cannoli = { path = "../../cannoli" }
 memfd-exec = "0.1"
-qemu-cannoli = {git = "https://github.com/believeinlain/qemu-cannoli.git", features = ["qemu-mipsel", "qemu-riscv64"] }
+qemu = { path = "../../qemu-rs", features = ["qemu-mipsel", "qemu-riscv64"] }
