@@ -1,0 +1,10 @@
+[package]
+name = "tracer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jitter_always = { path = "../../jitter_always" }
+cannoli = { path = "../../cannoli" }
+memfd-exec = "0.1"
+qemu = { path = "../../qemu-rs", features = ["qemu-x86_64"] }
