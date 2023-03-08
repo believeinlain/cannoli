@@ -205,25 +205,25 @@ impl Cannoli for Tracer {
 
     /// Print the trace we processed!
     fn trace(&mut self, _pid: &Self::PidContext, _tid: &Self::TidContext, trace: &[Self::Trace]) {
-        // for op in trace {
-        //     match op {
-        //         Operation::Exec { pc } => {
-        //             println!("\x1b[0;34mEXEC\x1b[0m   @ {pc}");
-        //         }
-        //         Operation::Read { pc, addr, val, sz } => {
-        //             println!(
-        //                 "\x1b[0;32mREAD{sz}\x1b[0m  @ {pc} | \
-        //                 {addr} ={val:#x}"
-        //             );
-        //         }
-        //         Operation::Write { pc, addr, val, sz } => {
-        //             println!(
-        //                 "\x1b[0;31mWRITE{sz}\x1b[0m @ {pc} | \
-        //                 {addr} ={val:#x}"
-        //             );
-        //         }
-        //     }
-        // }
+        for op in trace {
+            match op {
+                Operation::Exec { pc } => {
+                    println!("\x1b[0;34mEXEC\x1b[0m   @ {pc}");
+                }
+                Operation::Read { pc, addr, val, sz } => {
+                    println!(
+                        "\x1b[0;32mREAD{sz}\x1b[0m  @ {pc} | \
+                        {addr} ={val:#x}"
+                    );
+                }
+                Operation::Write { pc, addr, val, sz } => {
+                    println!(
+                        "\x1b[0;31mWRITE{sz}\x1b[0m @ {pc} | \
+                        {addr} ={val:#x}"
+                    );
+                }
+            }
+        }
     }
 }
 
